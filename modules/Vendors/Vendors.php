@@ -82,6 +82,36 @@ class Vendors extends CRMEntity {
 	function save_module($module)
 	{
 	}
+  
+  // Override parent method to intercept call and forward
+  // to Connec!
+  // For this module (Vendors), the entity only gets forwarded
+  // if supplier organizations get explicitly mapped to Vendors
+  // (See MnoSoaOrganization for more details)
+	function save($module_name,$fileid='',$push_to_maestrano=true) {
+      // call super
+      $result = parent::save($module_name,$fileid);
+      
+      // Only forward if suppliers are explicitly mapped
+      // to vendors
+      if (MnoSoaOrganization::isSupplierMappedToVendor()) {
+        try {
+            if ($push_to_maestrano) {
+                // Get Maestrano Service
+                $maestrano = MaestranoService::getInstance();
+
+                if ($maestrano->isSoaEnabled() and $maestrano->getSoaUrl()) {
+                    $mno_org=new MnoSoaOrganization(PearDatabase::getInstance(), new MnoSoaBaseLogger());
+                    $mno_org->send($this);
+                }
+            }
+        } catch (Exception $ex) {
+            // skip
+        }
+      }
+
+      return $result;
+	}
 
 	/**	function used to get the list of products which are related to the vendor
 	 *	@param int $id - vendor id
