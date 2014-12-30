@@ -14,6 +14,7 @@ define("APP_DIR", realpath(MAESTRANO_ROOT . '/../'));
 chdir(APP_DIR);
 require_once APP_DIR . '/modules/Users/Users.php';
 require_once APP_DIR . '/modules/Accounts/Accounts.php';
+require_once APP_DIR . '/modules/Vendors/Vendors.php';
 require_once APP_DIR . '/modules/Contacts/Contacts.php';
 require_once APP_DIR . '/modules/Products/Products.php';
 require_once APP_DIR . '/modules/Products/Products.php';
