@@ -273,12 +273,22 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
     // BILLING ADDRESS -> POSTAL ADDRESS
     // Field name prefix varies depending on the module being used (Accounts or Vendors)
     $addr_prefix = $this->isUsingVendorsModule() ? '' : 'bill_';
-    $this->_address->postalAddress->streetAddress = $this->push_set_or_delete_value($this->_local_entity->column_fields[$addr_prefix . 'street']);
-    $this->_address->postalAddress->locality = $this->push_set_or_delete_value($this->_local_entity->column_fields[$addr_prefix . 'city']);
-    $this->_address->postalAddress->region = $this->push_set_or_delete_value($this->_local_entity->column_fields[$addr_prefix . 'state']);
-    $this->_address->postalAddress->postalCode = $this->push_set_or_delete_value($this->_local_entity->column_fields[$addr_prefix . 'code']);
-    $country_code = $this->mapCountryToISO3166($this->_local_entity->column_fields[$addr_prefix . 'country']);
-    $this->_address->postalAddress->country = strtoupper($this->push_set_or_delete_value($country_code));
+    if ($this->isUsingVendorsModule()) {
+      $this->_address->postalAddress->streetAddress = $this->push_set_or_delete_value($this->_local_entity->column_fields['street']);
+      $this->_address->postalAddress->locality = $this->push_set_or_delete_value($this->_local_entity->column_fields['city']);
+      $this->_address->postalAddress->region = $this->push_set_or_delete_value($this->_local_entity->column_fields['state']);
+      $this->_address->postalAddress->postalCode = $this->push_set_or_delete_value($this->_local_entity->column_fields['postalcode']);
+      $country_code = $this->mapCountryToISO3166($this->_local_entity->column_fields['vendorcountry']);
+      $this->_address->postalAddress->country = strtoupper($this->push_set_or_delete_value($country_code));
+    } else {
+      $this->_address->postalAddress->streetAddress = $this->push_set_or_delete_value($this->_local_entity->column_fields['bill_street']);
+      $this->_address->postalAddress->locality = $this->push_set_or_delete_value($this->_local_entity->column_fields['bill_city']);
+      $this->_address->postalAddress->region = $this->push_set_or_delete_value($this->_local_entity->column_fields['bill_state']);
+      $this->_address->postalAddress->postalCode = $this->push_set_or_delete_value($this->_local_entity->column_fields['bill_code']);
+      $country_code = $this->mapCountryToISO3166($this->_local_entity->column_fields['bill_country']);
+      $this->_address->postalAddress->country = strtoupper($this->push_set_or_delete_value($country_code));
+    }
+    
     
     
     // SHIPPING ADDRESS -> STREET ADDRESS
@@ -305,13 +315,22 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
     
     // POSTAL ADDRESS -> BILLING ADDRESS
     // Field name prefix varies depending on the module being used (Accounts or Vendors)
-    $addr_prefix = $this->isUsingVendorsModule() ? '' : 'bill_';
-    $this->_local_entity->column_fields[$addr_prefix . 'street'] = $this->pull_set_or_delete_value($this->_address->postalAddress->streetAddress);
-    $this->_local_entity->column_fields[$addr_prefix . 'city'] = $this->pull_set_or_delete_value($this->_address->postalAddress->locality);
-    $this->_local_entity->column_fields[$addr_prefix . 'state'] = $this->pull_set_or_delete_value($this->_address->postalAddress->region);
-    $this->_local_entity->column_fields[$addr_prefix . 'code'] = $this->pull_set_or_delete_value($this->_address->postalAddress->postalCode);
-    $country = $this->mapISO3166ToCountry($this->_address->postalAddress->country);
-    $this->_local_entity->column_fields[$addr_prefix . 'country'] = $this->pull_set_or_delete_value($country);
+    if ($this->isUsingVendorsModule()) {
+      $this->_local_entity->column_fields['street'] = $this->pull_set_or_delete_value($this->_address->postalAddress->streetAddress);
+      $this->_local_entity->column_fields['city'] = $this->pull_set_or_delete_value($this->_address->postalAddress->locality);
+      $this->_local_entity->column_fields['state'] = $this->pull_set_or_delete_value($this->_address->postalAddress->region);
+      $this->_local_entity->column_fields['postalcode'] = $this->pull_set_or_delete_value($this->_address->postalAddress->postalCode);
+      $country = $this->mapISO3166ToCountry($this->_address->postalAddress->country);
+      $this->_local_entity->column_fields['vendorcountry'] = $this->pull_set_or_delete_value($country);
+    } else {
+      $this->_local_entity->column_fields['bill_street'] = $this->pull_set_or_delete_value($this->_address->postalAddress->streetAddress);
+      $this->_local_entity->column_fields['bill_city'] = $this->pull_set_or_delete_value($this->_address->postalAddress->locality);
+      $this->_local_entity->column_fields['bill_state'] = $this->pull_set_or_delete_value($this->_address->postalAddress->region);
+      $this->_local_entity->column_fields['bill_code'] = $this->pull_set_or_delete_value($this->_address->postalAddress->postalCode);
+      $country = $this->mapISO3166ToCountry($this->_address->postalAddress->country);
+      $this->_local_entity->column_fields['bill_country'] = $this->pull_set_or_delete_value($country);
+    }
+    
     
     // STREET ADDRESS -> SHIPPING ADDRESS
     if ($this->isUsingAccountsModule()) {
