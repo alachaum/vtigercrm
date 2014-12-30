@@ -447,7 +447,7 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
       // Minimal assignment based known context (e.g: do not override
       // customer flag in Connec! just because it's a vendor in vTiger)
       if ($this->isUsingVendorsModule()) $this->_entity->supplier = true;
-      if ($this->isUsingAccountsModule()) $this->_entity->supplier = true;
+      if ($this->isUsingAccountsModule()) $this->_entity->customer = true;
     }
     
     $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " end ");
