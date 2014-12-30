@@ -33,10 +33,11 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
    * or the "entity.supplier" attribute is true
    */
   public function isVendor() {
+    $is_native_customer = ($this->_local_entity && get_class($this->_local_entity) == "Accounts");
     $is_native_vendor = ($this->_local_entity && get_class($this->_local_entity) == "Vendors");
     $is_vendor_by_attribute = ($this->_entity && $this->_entity->supplier);
     
-    return $is_native_vendor || $is_vendor_by_attribute;
+    return !$is_native_customer && ($is_native_vendor || $is_vendor_by_attribute);
   }
   
   /*
@@ -112,6 +113,21 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
     
     // Retrieve the local entity id using the Maestrano IdMap table
     $local_id = $this->getLocalIdByMnoId($this->_id);
+    
+    // If the Organization is a Supplier but has already been mapped
+    // to an Account then the Account gets deleted as well as the
+    // IdMap. This will automatically trigger the creation of a new
+    // Vendor in vTiger
+    if (IS_SUPPLIER_MAPPED_TO_VENDOR && !is_null($local_id)) {
+      if ($this->isUsingVendorsModule() && $local_id->_entity == "ACCOUNTS") {
+        $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " This supplier organization is already mapped to an Account while this application is configured to strictly map supplier organizations to Vendors.");
+        $account = CRMEntity::getInstance("Accounts");
+        $account->mark_deleted($local_id->_id);
+        $this->_mno_soa_db_interface->hardDeleteIdMapEntry($local_id->_id, "Accounts");
+        $local_id = null;
+        $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " Account has been deleted to allow the creation a new Vendor in vTiger.");
+      }
+    }
 
     if ($this->isValidIdentifier($local_id)) {
       // Setup the vTiger entity
