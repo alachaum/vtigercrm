@@ -34,7 +34,7 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
    */
   public function isVendor() {
     $is_native_vendor = ($this->_local_entity && get_class($this->_local_entity) == "Vendors");
-    $is_vendor_by_attribute = ($this->_entity && array_key_exists('supplier',$this->_entity) && $this->_entity['supplier']);
+    $is_vendor_by_attribute = ($this->_entity && $this->_entity->supplier);
     
     return $is_native_vendor || $is_vendor_by_attribute;
   }
@@ -423,12 +423,12 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
     $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " start ");
     
     if (self::IS_SUPPLIER_MAPPED_TO_VENDOR) {
-      $this->_entity = array();
+      $this->_entity = new StdClass();
       
       // Minimal assignment based known context (e.g: do not override
       // customer flag in Connec! just because it's a vendor in vTiger)
-      if ($this->isUsingVendorsModule()) $this->_entity['supplier'] = true;
-      if ($this->isUsingAccountsModule()) $this->_entity['customer'] = true;
+      if ($this->isUsingVendorsModule()) $this->_entity->supplier = true;
+      if ($this->isUsingAccountsModule()) $this->_entity->supplier = true;
     }
     
     $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " end ");
@@ -462,6 +462,19 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
    */
   public function getLocalEntityIdentifier() {
     return $this->_local_entity->id;
+  }
+  
+  /*
+   * Override parent to accept an actual object
+   * From the object we are then able to determine the type
+   * being deleted (Accounts or Vendors)
+   */
+  public function sendDeleteNotification($local_entity) {
+    // Evaluate module being deleted from local_entity
+    $this->_local_entity = $local_entity;
+    $this->evaluateModuleToUse();
+    
+    parent::sendDeleteNotification($this->getLocalEntityIdentifier());
   }
 }
 

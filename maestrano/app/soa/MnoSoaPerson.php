@@ -6,6 +6,7 @@
 class MnoSoaPerson extends MnoSoaBasePerson
 {
   protected $_local_entity_name = "contacts";
+  protected $_skip_save = false;
   
   protected function pushId() {
     $this->_log->debug(__FUNCTION__ . " start");
@@ -37,9 +38,11 @@ class MnoSoaPerson extends MnoSoaBasePerson
         $this->_local_entity->id = $local_id->_id;
         $this->_local_entity->mode = 'edit';
         return constant('MnoSoaBaseEntity::STATUS_EXISTING_ID');
+      
       } else if ($this->isDeletedIdentifier($local_id)) {
         $this->_log->debug(__FUNCTION__ . " is STATUS_DELETED_ID");
         return constant('MnoSoaBaseEntity::STATUS_DELETED_ID');
+      
       } else {
         $this->_local_entity = new Contacts();
         $this->_local_entity->column_fields['assigned_user_id'] = "1";
@@ -321,12 +324,27 @@ class MnoSoaPerson extends MnoSoaBasePerson
     }
   }
   
+  /*
+   * Pull role (relation to organization) to local instance from soa instance
+   * If the person is related to a Vendor then the contact DOES NOT get persisted
+   * as vTiger is unable to properly manage Vendor contacts (there is a relation but
+   * it's absolutely not functional and more confusing than anything else)
+   */
   protected function pullRole() {
     if (empty($this->_role->organization->id)) {
       $this->_local_entity->column_fields['account_id'] = "";
       $this->_local_entity->column_fields['title'] = "";
     } else {
       $local_id = $this->getLocalIdByMnoIdName($this->_role->organization->id, "organizations");
+      
+      // Check local_id is not related to a Vendor
+      // Flag the local instance as "not to be saved" if that's the case
+      if (!is_null($local_id)) {        
+        if ($local_id->_entity == "VENDORS") {
+          $this->_skip_save = true;
+          return false;
+        }
+      }
       
       if ($this->isValidIdentifier($local_id)) {
         $this->_log->debug(__FUNCTION__ . " local_id = " . json_encode($local_id));
@@ -340,21 +358,41 @@ class MnoSoaPerson extends MnoSoaBasePerson
         $notification->id = $this->_role->organization->id;
         $organization = new MnoSoaOrganization($this->_db, $this->_log);    
         $status = $organization->receiveNotification($notification);
+        
         if ($status) {
-          $this->_local_entity->column_fields['account_id'] = $this->pull_set_or_delete_value($organization->getLocalEntityIdentifier());
-          $this->_local_entity->column_fields['title'] = $this->pull_set_or_delete_value($this->_role->title);
+          // If related organization is mapped to a Vendor
+          // then the person does not get saved (see above)
+          if ($organization->isUsingVendorsModule()) {
+            $this->_skip_save = true;
+            return false;
+          } else {
+            $this->_local_entity->column_fields['account_id'] = $this->pull_set_or_delete_value($organization->getLocalEntityIdentifier());
+            $this->_local_entity->column_fields['title'] = $this->pull_set_or_delete_value($this->_role->title);
+          }
         }
       }
     }
   }
   
+  /*
+   * Save the local entity in databse
+   * If the person is related to a Vendor then the contact DOES NOT get persisted
+   * as vTiger is unable to properly manage Vendor contacts (there is a relation but
+   * it's absolutely not functional and more confusing than anything else)
+   */
   protected function saveLocalEntity($push_to_maestrano) {
     $this->_log->debug(__FUNCTION__ . " start");
-    $this->_local_entity->save("Contacts", '', $push_to_maestrano);
-    $this->_log->debug(__FUNCTION__ . " save notes");
-    $this->saveNotes();
-    $this->_log->debug(__FUNCTION__ . " save tasks");
-    $this->saveTasks();
+    
+    if ($this->_skip_save) {
+      $this->_log->debug(__FUNCTION__ . " skipping save as person is related to Vendor (and not Account)");
+    } else {
+      $this->_local_entity->save("Contacts", '', $push_to_maestrano);
+      $this->_log->debug(__FUNCTION__ . " save notes");
+      $this->saveNotes();
+      $this->_log->debug(__FUNCTION__ . " save tasks");
+      $this->saveTasks();
+    }
+    
     $this->_log->debug(__FUNCTION__ . " end");
   }
 

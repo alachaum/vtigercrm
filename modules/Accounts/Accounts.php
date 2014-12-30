@@ -1281,16 +1281,23 @@ class Accounts extends CRMEntity {
 	}
 
 	function mark_deleted($id) {
-                parent::mark_deleted($id);
-                
-                // Get Maestrano Service
-                $maestrano = MaestranoService::getInstance();
-                
-                // DISABLED DELETE NOTIFICATIONS
-                if ($maestrano->isSoaEnabled() and $maestrano->getSoaUrl()) {
-                  $mno_org=new MnoSoaOrganization($this->db, new MnoSoaBaseLogger());
-                  $mno_org->sendDeleteNotification($id);
-                }
+      parent::mark_deleted($id);
+      
+      // Get Maestrano Service
+      $maestrano = MaestranoService::getInstance();
+      
+      // DELETE notifications are currently disabled
+      // The delete operation is only flagged locally (in IdMap)
+      if ($maestrano->isSoaEnabled() and $maestrano->getSoaUrl()) {
+        $mno_org = new MnoSoaOrganization($this->db, new MnoSoaBaseLogger());
+
+        // Note that sendDeleteNotification takes an object here - not an id
+        // This is a MnoSoaOrganization specific override required to guess
+        // the type (Accounts or Vendors)
+        $obj = new Accounts();
+        $obj->id = $id;
+        $mno_org->sendDeleteNotification($obj);
+      }
 	}
 
 	function save_related_module($module, $crmid, $with_module, $with_crmids) {

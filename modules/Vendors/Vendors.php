@@ -112,6 +112,27 @@ class Vendors extends CRMEntity {
 
       return $result;
 	}
+  
+  // Flag the instance as deleted
+	function mark_deleted($id) {
+    parent::mark_deleted($id);
+    
+    // Get Maestrano Service
+    $maestrano = MaestranoService::getInstance();
+    
+    // DELETE notifications are currently disabled
+    // The delete operation is only flagged locally (in IdMap)
+    if ($maestrano->isSoaEnabled() and $maestrano->getSoaUrl()) {
+      $mno_org = new MnoSoaOrganization($this->db, new MnoSoaBaseLogger());
+      
+      // Note that sendDeleteNotification takes an object here - not an id
+      // This is a MnoSoaOrganization specific override required to guess
+      // the type (Accounts or Vendors)
+      $obj = new Vendors();
+      $obj->id = $id;
+      $mno_org->sendDeleteNotification($obj);
+    }
+	}
 
 	/**	function used to get the list of products which are related to the vendor
 	 *	@param int $id - vendor id
