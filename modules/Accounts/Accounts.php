@@ -176,7 +176,7 @@ class Accounts extends CRMEntity {
 	 */
 	function get_contacts($id, $cur_tab_id, $rel_tab_id, $actions=false) {
 		global $log, $singlepane_view,$currentModule,$current_user;
-		$log->debug("Entering get_contacts(".$id.") method ...");
+		$log->info("Entering get_contacts(".$id.",".$cur_tab_id.",".$rel_tab_id.") method ...");
 		$this_module = $currentModule;
 
         $related_module = vtlib_getModuleNameById($rel_tab_id);

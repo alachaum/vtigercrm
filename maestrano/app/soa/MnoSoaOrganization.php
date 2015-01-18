@@ -116,16 +116,32 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
     
     // If the Organization is a Supplier but has already been mapped
     // to an Account then the Account gets deleted as well as the
-    // IdMap. This will automatically trigger the creation of a new
+    // IdMap (hard delete to allow for re-creation). 
+    // This will automatically trigger the creation of a new
     // Vendor in vTiger
+    // All People (Contacts) related to that Organization also
+    // get deleted in vTiger (Vendors cannot have contacts the way
+    // Organizations/Accounts do)
+    //
+    // If instead the organization used to be a Vendor but is now
+    // a customer (only) then the vendor gets deleted to allow the
+    // re-creation of a customer
     if (IS_SUPPLIER_MAPPED_TO_VENDOR && !is_null($local_id)) {
       if ($this->isUsingVendorsModule() && $local_id->_entity == "ACCOUNTS") {
-        $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " This supplier organization is already mapped to an Account while this application is configured to strictly map supplier organizations to Vendors.");
-        $account = CRMEntity::getInstance("Accounts");
-        $account->mark_deleted($local_id->_id);
-        $this->_mno_soa_db_interface->hardDeleteIdMapEntry($local_id->_id, "Accounts");
+        $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " This supplier organization is already mapped to an Account while this application is configured to strictly map supplier organizations to Vendors. Removing Organization as customer.");
+        
+        $this->resetOrganizationAndContacts($local_id->_id,"Accounts");
+        
+        $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " Account has been deleted to allow the creation of a new Vendor in vTiger.");
         $local_id = null;
-        $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " Account has been deleted to allow the creation a new Vendor in vTiger.");
+      
+      } elseif ($this->isUsingAccountsModule() && $local_id->_entity == "VENDORS") {
+        $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " This customer organization used to be a Vendor but is now a customer (only). Removing Organization as Vendor.");
+        
+        $this->resetOrganizationAndContacts($local_id->_id,"Vendors");
+        
+        $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " Vendor has been deleted to allow the creation of a new Customer in vTiger.");
+        $local_id = null;
       }
     }
 
@@ -510,6 +526,37 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
     $this->evaluateModuleToUse();
     
     parent::sendDeleteNotification($this->getLocalEntityIdentifier());
+  }
+  
+  /*
+   * Delete the Organization and Contacts
+   * This is a hard delete - all idmaps will be deleted as well
+   */
+  public function resetOrganizationAndContacts($orgEntityLocalId,$entityType) {
+    // Get Account instance
+    $account = CRMEntity::getInstance($entityType);
+    
+    // Delete associated contacts from vTiger
+    $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " Deleting all contacts related this organization as vTiger does not manage Vendor contacts");
+    $contact = CRMEntity::getInstance("Contacts");
+		$query = "SELECT vtiger_crmentity.crmid
+			FROM vtiger_contactdetails
+			INNER JOIN vtiger_crmentity ON vtiger_crmentity.crmid = vtiger_contactdetails.contactid
+			WHERE vtiger_crmentity.deleted = 0
+      AND setype = 'Contacts'
+			AND vtiger_contactdetails.accountid = ?";
+    $contact_ids = $this->_mno_soa_db_interface->query($query, array($orgEntityLocalId));
+    $row_count = $this->_mno_soa_db_interface->num_rows($contact_ids);
+    
+    for ($i = 0; $i < $row_count; $i++) {
+			$contact_id = $this->_mno_soa_db_interface->query_result($contact_ids, $i, "crmid");
+      $contact->mark_deleted($contact_id);
+      $this->_mno_soa_db_interface->hardDeleteIdMapEntry($contact_id, "Contacts");
+		}
+    
+    // Delete Customer Organization from vTiger
+    $account->mark_deleted($orgEntityLocalId);
+    $this->_mno_soa_db_interface->hardDeleteIdMapEntry($orgEntityLocalId, $entityType);
   }
 }
 

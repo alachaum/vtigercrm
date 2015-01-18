@@ -148,4 +148,16 @@ class MnoSoaDB extends MnoSoaBaseDB {
         return false;
       }
     }
+    
+    public function query($query,$param_array) {
+      return $this->_db->pquery($query, $param_array);
+    }
+    
+    public function num_rows($resultSet) {
+      return $this->_db->num_rows($resultSet);
+    }
+    
+    public function query_result($resultSet, $rowNumber, $fieldName) {
+      return $this->_db->query_result($resultSet, $rowNumber, $fieldName);
+    }
   }
