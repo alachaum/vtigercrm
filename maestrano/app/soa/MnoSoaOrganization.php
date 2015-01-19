@@ -52,7 +52,7 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
    * for Connec!
    */
   protected function evaluateModuleToUse() {
-    if (IS_SUPPLIER_MAPPED_TO_VENDOR && $this->isVendor()) {
+    if (self::IS_SUPPLIER_MAPPED_TO_VENDOR && $this->isVendor()) {
       $this->_local_entity_module = "Vendors";
       $this->_local_entity_name = "vendors";
     } else {
@@ -114,6 +114,8 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
     // Retrieve the local entity id using the Maestrano IdMap table
     $local_id = $this->getLocalIdByMnoId($this->_id);
     
+    // Supplier Mapping Enabled
+    //===========================
     // If the Organization is a Supplier but has already been mapped
     // to an Account then the Account gets deleted as well as the
     // IdMap (hard delete to allow for re-creation). 
@@ -126,25 +128,45 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
     // If instead the organization used to be a Vendor but is now
     // a customer (only) then the vendor gets deleted to allow the
     // re-creation of a customer
-    if (IS_SUPPLIER_MAPPED_TO_VENDOR && !is_null($local_id)) {
-      if ($this->isUsingVendorsModule() && $local_id->_entity == "ACCOUNTS") {
-        $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " This supplier organization is already mapped to an Account while this application is configured to strictly map supplier organizations to Vendors. Removing Organization as customer.");
+    //
+    // Supplier Mapping Disabled
+    //===========================
+    // If the supplier mapping has been enabled previously and Vendors
+    // have been created via Connec! then these Vendors will be rolled
+    // back to normal Accounts
+    if (!is_null($local_id)) {
+      if (self::IS_SUPPLIER_MAPPED_TO_VENDOR) {
+        if ($this->isUsingVendorsModule() && $local_id->_entity == "ACCOUNTS") {
+          $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " This supplier organization is already mapped to an Account while this application is configured to strictly map supplier organizations to Vendors. Removing Organization as Account to allow Vendor creation.");
         
-        $this->resetOrganizationAndContacts($local_id->_id,"Accounts");
+          $this->resetOrganizationAndContacts($local_id->_id,"Accounts");
         
-        $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " Account has been deleted to allow the creation of a new Vendor in vTiger.");
-        $local_id = null;
+          $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " Account has been deleted to allow the creation of a new Vendor in vTiger.");
+          $local_id = null;
       
-      } elseif ($this->isUsingAccountsModule() && $local_id->_entity == "VENDORS") {
-        $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " This customer organization used to be a Vendor but is now a customer (only). Removing Organization as Vendor.");
+        } elseif ($this->isUsingAccountsModule() && $local_id->_entity == "VENDORS") {
+          $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " This customer organization used to be a Vendor but is now a customer (only). Removing Organization as Vendor to allow Account creation.");
         
-        $this->resetOrganizationAndContacts($local_id->_id,"Vendors");
+          $this->resetOrganizationAndContacts($local_id->_id,"Vendors");
         
-        $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " Vendor has been deleted to allow the creation of a new Customer in vTiger.");
-        $local_id = null;
+          $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " Vendor has been deleted to allow the creation of a new Customer in vTiger.");
+          $local_id = null;
+        }
+        
+      } else {
+        if ($local_id->_entity == "VENDORS") {
+          $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " Supplier mapping has been disabled since this Vendor has been created. Removing Organization as Vendor to allow Account creation.");
+      
+          $this->resetOrganizationAndContacts($local_id->_id,"Vendors");
+      
+          $this->_log->debug(__CLASS__ . ' ' . __FUNCTION__ . " Vendor has been deleted to allow the creation of a new Account in vTiger.");
+          $local_id = null;
+        }
       }
     }
-
+    
+    
+    // Normal mapping flow
     if ($this->isValidIdentifier($local_id)) {
       // Setup the vTiger entity
       $this->_local_entity = CRMEntity::getInstance($this->_local_entity_module);
