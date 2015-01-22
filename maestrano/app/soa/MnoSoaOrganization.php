@@ -29,15 +29,18 @@ class MnoSoaOrganization extends MnoSoaBaseOrganization
   /*
    * Check whether this entity is supposed to be a vTiger
    * vendor or not
-   * Return true if either the _local_entity is a vendor
+   * Return true if:
+   * The entity is not a native customer or customer by attribute
+   * either the _local_entity is a vendor
    * or the "entity.supplier" attribute is true
    */
   public function isVendor() {
     $is_native_customer = ($this->_local_entity && get_class($this->_local_entity) == "Accounts");
     $is_native_vendor = ($this->_local_entity && get_class($this->_local_entity) == "Vendors");
+    $is_customer_by_attribute = ($this->_entity && $this->_entity->customer);
     $is_vendor_by_attribute = ($this->_entity && $this->_entity->supplier);
     
-    return !$is_native_customer && ($is_native_vendor || $is_vendor_by_attribute);
+    return !$is_native_customer && !$is_customer_by_attribute && ($is_native_vendor || $is_vendor_by_attribute);
   }
   
   /*
